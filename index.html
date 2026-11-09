@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light dark}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>21天恢复计划</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+/* Layout: three "lanes" (weeks) of seven day tiles on top, one selected-day panel below, then run chart and move library. */
+:root{
+  --bg:#EEF2F5; --surface:#FFFFFF; --surface2:#E3EAF0; --fg:#0F1D27; --muted:#566874; --line:#CCD7DF;
+  --run:#F2562B; --str:#2F5BFF; --rest:#0E9F7E; --hi:#FFD23F; --on:#FFFFFF;
+  --f-display:"Barlow Condensed","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+  --f-body:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0C1218; --surface:#141D26; --surface2:#1C2832; --fg:#EAF1F5; --muted:#93A5B2; --line:#263441;
+    --run:#FF7448; --str:#7C98FF; --rest:#2CC9A2; --on:#0C1218; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0C1218; --surface:#141D26; --surface2:#1C2832; --fg:#EAF1F5; --muted:#93A5B2; --line:#263441;
+  --run:#FF7448; --str:#7C98FF; --rest:#2CC9A2; --on:#0C1218; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.6;
+  padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+h1,h2,h3{font-family:var(--f-display);font-weight:800;line-height:1.05;margin:0;text-wrap:balance;letter-spacing:.01em}
+h2{font-size:26px}
+h3{font-size:20px}
+p{margin:0}
+a{color:inherit}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--hi);outline-offset:2px}
+.num{font-family:var(--f-display);font-variant-numeric:tabular-nums}
+.eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:700}
+
+/* header */
+.hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center}
+.hero h1{font-size:clamp(40px,9vw,72px);text-transform:none}
+.hero h1 span{color:var(--run)}
+.hero .next{margin-top:10px;font-size:15px;color:var(--muted)}
+.hero .next b{color:var(--fg)}
+.ring{position:relative;width:132px;height:132px}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .tr{stroke:var(--surface2)}
+.ring .pg{stroke:var(--run);transition:stroke-dashoffset .5s}
+.ring .c{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.ring .c b{font-family:var(--f-display);font-size:38px;line-height:1}
+.ring .c small{font-size:11px;color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.stat{background:var(--surface);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.stat b{font-family:var(--f-display);font-size:30px;line-height:1.05;font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--muted)}
+.stat.run b{color:var(--run)} .stat.str b{color:var(--str)} .stat.rest b{color:var(--rest)}
+
+/* lanes */
+.lanes{display:flex;flex-direction:column;gap:14px}
+.lane-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px}
+.lane-head h3{font-size:18px}
+.lane-head span{font-size:12px;color:var(--muted)}
+.lane{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.tile{--c:var(--run);position:relative;border:2px solid transparent;border-radius:14px;background:color-mix(in srgb,var(--c) 14%,var(--surface));
+  padding:8px 2px 7px;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0;text-align:center}
+.tile.t-A,.tile.t-B{--c:var(--str)} .tile.t-rest{--c:var(--rest)}
+.tile .n{font-family:var(--f-display);font-weight:800;font-size:24px;line-height:1}
+.tile .tag{width:26px;height:26px;border-radius:50%;background:var(--c);color:var(--on);display:grid;place-items:center;font-size:12px;font-weight:700}
+.tile small{font-size:10.5px;color:var(--muted);white-space:nowrap}
+.tile.done{background:var(--c)}
+.tile.done .n,.tile.done small{color:var(--on)}
+.tile.done .tag{background:var(--on);color:var(--c)}
+.tile.today::after{content:"今天";position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:var(--hi);color:#2B2300;font-size:10px;font-weight:700;padding:0 7px;border-radius:9px;line-height:17px}
+.tile.sel{border-color:var(--fg)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+
+/* detail */
+.detail{background:var(--surface);border-radius:22px;padding:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:24px}
+.detail>div{min-width:0;display:flex;flex-direction:column;gap:14px}
+.d-title{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.pill{display:inline-block;padding:2px 12px;border-radius:999px;background:var(--c,var(--run));color:var(--on);font-size:12px;font-weight:700}
+.detail h2{font-size:34px}
+.sub{color:var(--muted);font-size:14px}
+.seg{display:flex;height:34px;border-radius:10px;overflow:hidden;gap:2px}
+.seg div{display:grid;place-items:center;font-size:12px;font-weight:700;min-width:0;overflow:hidden;white-space:nowrap}
+.seg .w{background:var(--surface2);color:var(--muted)}
+.seg .r{background:var(--run);color:var(--on)}
+.blocks{display:flex;flex-wrap:wrap;gap:3px}
+.blocks i{width:16px;height:16px;border-radius:4px;background:var(--run)}
+.blocks i.g{background:var(--surface2);border:1px solid var(--line)}
+.ex-row{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;padding:12px;border-radius:16px;background:color-mix(in srgb,var(--str) 8%,var(--surface));align-items:center}
+.pair{display:flex;gap:4px}
+.pair svg{width:64px;height:52px;background:var(--surface);border-radius:10px}
+.ex-row h4{margin:0;font-size:16px;line-height:1.3}
+.ex-row .meta{font-size:12.5px;color:var(--muted)}
+.sets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
+.sets button{border:2px solid var(--str);background:transparent;border-radius:999px;padding:1px 12px;font-size:13px;font-weight:700;color:var(--str)}
+.sets button[aria-pressed="true"]{background:var(--str);color:var(--on)}
+.sets label{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px;margin-left:auto}
+.sets input{width:58px;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:8px;padding:2px 6px;font:inherit;font-size:13px}
+.ex-row .more{font-size:12px;color:var(--str);text-decoration:underline;margin-left:8px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field>span{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.08em}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips button{width:44px;height:40px;border-radius:12px;border:2px solid var(--line);background:var(--surface);font-family:var(--f-display);font-size:20px;font-weight:700}
+.chips button[aria-pressed="true"]{background:var(--hi);border-color:var(--hi);color:#2B2300}
+select,textarea{width:100%;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:12px;padding:8px 10px;font:inherit}
+textarea{min-height:76px;resize:vertical}
+.go{border:0;border-radius:14px;background:var(--c,var(--run));color:var(--on);font-weight:700;font-size:16px;padding:12px 18px}
+.go.off{background:var(--surface2);color:var(--fg)}
+.callout{border-radius:14px;padding:12px 14px;background:color-mix(in srgb,var(--hi) 22%,var(--surface));font-size:14px}
+
+/* chart */
+.card{background:var(--surface);border-radius:22px;padding:20px;display:flex;flex-direction:column;gap:14px}
+.chart svg{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font-family:var(--f-display);font-size:10px}
+.chart .v{fill:var(--fg);font-size:11px;font-weight:700}
+.chart .gl{stroke:var(--line);stroke-width:1}
+
+/* library */
+.lib{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,290px),1fr));gap:14px}
+.mv{background:var(--surface);border-radius:20px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.mv .pair{gap:8px}
+.mv .pair figure{margin:0;flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;align-items:center;font-size:11px;color:var(--muted)}
+.mv .pair svg{width:100%;height:auto;aspect-ratio:100/80;background:var(--surface2)}
+.mv h3{font-size:22px}
+.mv h3 small{font-family:var(--f-body);font-size:12px;font-weight:400;color:var(--muted);margin-left:6px}
+.mv ul{margin:0;padding-left:18px;font-size:14px;display:flex;flex-direction:column;gap:2px}
+.links{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto}
+.links a{text-decoration:none;font-size:13px;font-weight:700;border-radius:999px;padding:4px 12px;border:2px solid var(--str);color:var(--str)}
+.links a.p{background:var(--str);color:var(--on)}
+.bd path{fill:none;stroke:var(--fg);stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
+.bd circle{fill:var(--surface);stroke:var(--fg);stroke-width:3.2}
+.db{stroke:var(--str);stroke-width:6;stroke-linecap:round}
+.ex *{stroke:var(--muted);fill:none;stroke-width:1.8;stroke-linecap:round}
+.ex .dash{stroke-dasharray:3 3}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:12px}
+.rule{background:var(--surface);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:6px}
+.rule h3{font-size:20px;color:var(--c)}
+.rule p{font-size:14px;color:var(--muted)}
+.foot{font-size:12px;color:var(--muted)}
+.foot input{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:8px;padding:2px 6px;font:inherit}
+@media (max-width:520px){
+  .hero{grid-template-columns:1fr}
+  .ring{width:112px;height:112px}
+  .detail{padding:16px}
+  .detail h2{font-size:28px}
+}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+
+<script>
+(function(){
+var KEY='plan21-v1';
+var S={start:'2026-11-09',done:{1:true},sets:{},kg:{},energy:{},sleep:{},note:{},sel:null};
+try{var r=localStorage.getItem(KEY);if(r){S=Object.assign(S,JSON.parse(r));}}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+
+var PATTERN=['run','A','run','B','rest','run','A'];
+var RUN={1:[6,6],3:[10,12],6:[12,15],8:[15,18],10:[15,18],13:[18,20],15:[20,23],17:[20,23],20:[23,28]};
+var TYPE={run:{n:'轻松跑',l:'跑',c:'--run'},A:{n:'力量 A · 背 + 手臂',l:'A',c:'--str'},B:{n:'力量 B · 全身 + 肩膀',l:'B',c:'--str'},rest:{n:'恢复 · 轻松走路',l:'休',c:'--rest'}};
+var WEEK=['重建 · 熟悉动作','加时 · 跑更久','加重 · 稳步进阶'];
+var WD=['日','一','二','三','四','五','六'];
+var SESSION={A:['row','push','curl','bridge'],B:['row','push','squat','lat']};
+var days=[];for(var i=1;i<=21;i++){days.push({n:i,w:Math.ceil(i/7),t:PATTERN[(i-1)%7]});}
+
+/* poses: 100x80 box */
+var EX={
+row:{zh:'坐姿划船',en:'Seated Row',reps:'10–12 次',tip:'low row 或 seated pulley 二选一，先学会一台',
+ a:{alt:'坐姿划船起始：手臂向前伸直',head:[65,19],limbs:[[[66,28],[70,55]],[[70,55],[48,52],[44,66]],[[66,30],[36,34]]],ex:'<path d="M58 59H88"/><path class="dash" d="M36 34H8"/><path d="M36 29V39"/>'},
+ b:{alt:'坐姿划船完成：肘向后，把手到腹部',head:[68,19],limbs:[[[68,28],[70,55]],[[70,55],[48,52],[44,66]],[[67,30],[78,40],[56,38]]],ex:'<path d="M58 59H88"/><path class="dash" d="M56 38L8 34"/><path d="M56 33V43"/>'},
+ cues:['双脚踩稳，膝盖微屈，上身坐直','肩膀下沉，肘向后带，把手拉向腹部','缓慢放回，别用腰前后甩'],
+ yt:'seated cable row form',bl:'坐姿划船 动作教学',vid:['https://fitfatherproject.com/seated-cable-row','含视频讲解']},
+push:{zh:'高台俯卧撑',en:'Incline Push-up',reps:'8–12 次',tip:'双手撑在稳固的高台上，台面越高越容易',
+ a:{alt:'高台俯卧撑起始：手臂伸直，身体成一条斜线',head:[19,19],limbs:[[[26,24],[56,44],[88,64]],[[26,24],[22,38]]],ex:'<rect x="6" y="38" width="18" height="20"/><path d="M4 66H96"/>'},
+ b:{alt:'高台俯卧撑下压：屈肘靠近台面',head:[21,28],limbs:[[[28,33],[58,49],[88,64]],[[28,33],[36,40],[22,38]]],ex:'<rect x="6" y="38" width="18" height="20"/><path d="M4 66H96"/>'},
+ cues:['身体从头到脚保持一条直线','屈肘靠近台面，肘别外翻太宽','推起时不塌腰、不耸肩'],
+ yt:'incline push up form beginners',bl:'高台俯卧撑 新手 教学',vid:['https://www.sportskeeda.com/health-and-fitness/incline-push-up-tips-technique-correct-form-benefits','含视频']},
+curl:{zh:'哑铃弯举',en:'Dumbbell Curl',reps:'10–12 次',tip:'肘部固定在身体两侧',
+ a:{alt:'哑铃弯举起始：手臂自然下垂',head:[50,12],limbs:[[[50,22],[50,48]],[[50,48],[50,62],[52,76]],[[50,23],[51,36],[52,50]]],db:[[52,50]],ex:'<path d="M30 77H72"/>'},
+ b:{alt:'哑铃弯举顶部：哑铃举到肩前',head:[50,12],limbs:[[[50,22],[50,48]],[[50,48],[50,62],[52,76]],[[50,23],[51,36],[60,26]]],db:[[60,26]],ex:'<path d="M30 77H72"/>'},
+ cues:['肘贴身体两侧，不向前甩','不借身体摆动，用二头肌发力','下放比上举更慢，约 2 秒'],
+ yt:'dumbbell bicep curl form',bl:'哑铃弯举 标准动作',vid:['https://www.fitfatherproject.com/dumbbell-bicep-curls/','含视频讲解']},
+bridge:{zh:'臀桥',en:'Glute Bridge',reps:'10–12 次',tip:'仰躺屈膝，脚跟踩地',
+ a:{alt:'臀桥起始：仰躺屈膝',head:[12,59],limbs:[[[22,60],[48,60]],[[48,60],[66,40],[76,62]],[[22,60],[44,63]]],ex:'<path d="M4 65H96"/>'},
+ b:{alt:'臀桥顶部：肩、髋、膝成一条直线',head:[12,59],limbs:[[[22,60],[46,48]],[[46,48],[70,36],[76,62]],[[22,60],[44,63]]],ex:'<path d="M4 65H96"/><path class="dash" d="M22 60L70 36"/>'},
+ cues:['脚跟发力，肩、髋、膝成一条直线','顶部夹紧臀部，不要用腰往上顶','慢慢放下，约 2 秒'],
+ yt:'glute bridge form',bl:'臀桥 正确做法',vid:['https://www.icehockeysystems.com/off-ice-exercise/3565/glute-bridge','含视频']},
+squat:{zh:'徒手深蹲',en:'Bodyweight Squat',reps:'8–10 次',tip:'蹲到舒服的深度即可',
+ a:{alt:'深蹲起始：站直，双臂前伸',head:[50,11],limbs:[[[50,21],[50,46]],[[50,46],[50,62],[52,76]],[[50,23],[70,23]]],ex:'<path d="M28 77H80"/>'},
+ b:{alt:'深蹲底部：髋向后坐，背保持平直',head:[52,24],limbs:[[[48,34],[36,58]],[[36,58],[62,58],[56,76]],[[48,35],[72,33]]],ex:'<path d="M28 77H80"/>'},
+ cues:['髋先向后坐，像坐椅子','膝盖对着脚尖，背保持平直','脚掌踩实，站起时不耸肩'],
+ yt:'bodyweight squat form',bl:'徒手深蹲 教学',vid:['https://www.fitfatherproject.com/bodyweight-squats/','含视频讲解']},
+lat:{zh:'哑铃侧平举',en:'Lateral Raise',reps:'10–12 次',tip:'用轻重量，抬到肩高即止',
+ a:{alt:'侧平举起始：手臂垂在身侧',head:[50,11],limbs:[[[40,23],[60,23]],[[50,22],[50,50]],[[50,50],[44,76]],[[50,50],[56,76]],[[40,23],[37,46]],[[60,23],[63,46]]],db:[[37,46],[63,46]],ex:'<path d="M30 77H70"/>'},
+ b:{alt:'侧平举顶部：手臂抬到与肩同高',head:[50,11],limbs:[[[40,23],[60,23]],[[50,22],[50,50]],[[50,50],[44,76]],[[50,50],[56,76]],[[40,23],[27,25],[12,24]],[[60,23],[73,25],[88,24]]],db:[[12,24],[88,24]],ex:'<path d="M30 77H70"/>'},
+ cues:['肘微屈，带着肘往两侧抬','抬到肩高就停，别耸肩','重量轻一点，动作比重量重要'],
+ yt:'dumbbell lateral raise form',bl:'哑铃侧平举 标准动作',vid:['https://barbell-logic.com/dumbbell-lateral-raise-gym-shorts/','含短视频']}
+};
+
+function P(p){return 'M'+p.map(function(q){return q.join(' ');}).join('L');}
+function fig(p){
+  var s='<svg viewBox="0 0 100 80" role="img" aria-label="'+p.alt+'"><g class="ex">'+(p.ex||'')+'</g><g class="bd">';
+  p.limbs.forEach(function(l){s+='<path d="'+P(l)+'"/>';});
+  s+='<circle cx="'+p.head[0]+'" cy="'+p.head[1]+'" r="6.5"/></g>';
+  (p.db||[]).forEach(function(d){s+='<line class="db" x1="'+(d[0]-5)+'" y1="'+d[1]+'" x2="'+(d[0]+5)+'" y2="'+d[1]+'"/>';});
+  return s+'</svg>';
+}
+
+function dateOf(n){var a=S.start.split('-').map(Number);return new Date(a[0],a[1]-1,a[2]+n-1);}
+function fmt(n){var d=dateOf(n);return (d.getMonth()+1)+'/'+d.getDate();}
+function wd(n){return '周'+WD[dateOf(n).getDay()];}
+function todayIdx(){var t=new Date();var t0=new Date(t.getFullYear(),t.getMonth(),t.getDate());return Math.round((t0-dateOf(1))/864e5)+1;}
+function firstUndone(){for(var i=1;i<=21;i++){if(!S.done[i])return i;}return 21;}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+
+function stats(){
+  var done=0,str=0,run=0,min=0,best=0,cur=0;
+  days.forEach(function(d){
+    if(S.done[d.n]){done++;cur++;if(cur>best)best=cur;if(d.t==='run'){run++;min+=RUN[d.n][0];}else if(d.t!=='rest'){str++;}}else{cur=0;}
+  });
+  return {done:done,str:str,run:run,min:min,best:best};
+}
+
+function render(){
+  var st=stats(),ti=todayIdx();
+  if(!S.sel||S.sel<1||S.sel>21){S.sel=(ti>=1&&ti<=21)?ti:firstUndone();}
+  var nx=firstUndone(),nd=days[nx-1];
+  var circ=2*Math.PI*54,off=circ*(1-st.done/21);
+  var h='';
+  h+='<header class="hero"><div><div class="eyebrow">背 · 臂 · 跑步耐力 · 备考期</div><h1>21天<span>恢复</span>计划</h1>'+
+     '<p class="next">'+(st.done>=21?'<b>21 天全部完成。</b>回头看记录，再决定下一阶段。':'下一节 <b>Day '+nx+' · '+TYPE[nd.t].n+'</b>，'+fmt(nx)+' '+wd(nx)+'，早上 7 点开始。')+'</p></div>'+
+     '<div class="ring" aria-label="已完成 '+st.done+' 天，共 21 天"><svg viewBox="0 0 132 132"><circle class="tr" cx="66" cy="66" r="54" fill="none" stroke-width="14"/><circle class="pg" cx="66" cy="66" r="54" fill="none" stroke-width="14" stroke-linecap="round" stroke-dasharray="'+circ.toFixed(1)+'" stroke-dashoffset="'+off.toFixed(1)+'"/></svg><div class="c"><b>'+st.done+'<small> /21</small></b><small>天已完成</small></div></div></header>';
+  h+='<section class="stats"><div class="stat run"><b>'+st.run+'<small style="font-size:14px"> /9</small></b><span>轻松跑次数 · 累计约 '+st.min+' 分钟</span></div>'+
+     '<div class="stat str"><b>'+st.str+'<small style="font-size:14px"> /9</small></b><span>力量课次数</span></div>'+
+     '<div class="stat rest"><b>'+st.best+'<small style="font-size:14px"> 天</small></b><span>最长连续打卡</span></div></section>';
+  h+='<section class="lanes" aria-label="21 天日程">';
+  for(var w=1;w<=3;w++){
+    h+='<div><div class="lane-head"><h3>第 '+w+' 周 · '+WEEK[w-1]+'</h3><span>'+fmt((w-1)*7+1)+' – '+fmt(w*7)+'</span></div><div class="lane">';
+    days.filter(function(d){return d.w===w;}).forEach(function(d){
+      var cls='tile t-'+d.t+(S.done[d.n]?' done':'')+(d.n===ti?' today':'')+(d.n===S.sel?' sel':'');
+      h+='<button class="'+cls+'" data-day="'+d.n+'" aria-label="Day '+d.n+' '+TYPE[d.t].n+(S.done[d.n]?' 已完成':'')+'" aria-pressed="'+(d.n===S.sel)+'"><span class="n">'+d.n+'</span><span class="tag">'+TYPE[d.t].l+'</span><small>'+fmt(d.n)+'</small></button>';
+    });
+    h+='</div></div>';
+  }
+  h+='<div class="legend"><span><i style="background:var(--run)"></i>轻松跑</span><span><i style="background:var(--str)"></i>力量 A / B</span><span><i style="background:var(--rest)"></i>恢复走路</span><span>实心 = 已完成，点任意一天查看内容</span></div></section>';
+  h+=detail();
+  h+=chart();
+  h+='<section><div style="margin-bottom:12px"><div class="eyebrow">动作库</div><h2>6 个动作，一次看懂</h2><p class="sub" style="margin-top:6px">每个动作给出开始与完成两个姿势的示意图和 3 条要点。视频来自公开教程页面，另附 B 站和 YouTube 的搜索入口，可换讲解风格。</p></div><div class="lib">'+library()+'</div></section>';
+  h+=rules();
+  h+='<p class="foot">第 1 天日期：<input type="date" id="startDate" value="'+S.start+'"> 　记录保存在这台设备的浏览器里。训练中出现关节刺痛、胸痛或头晕就停下，必要时问医生。</p>';
+  document.getElementById('app').innerHTML=h;
+}
+
+function detail(){
+  var n=S.sel,d=days[n-1],T=TYPE[d.t],h='';
+  h+='<section class="detail" style="--c:var('+T.c+')"><div>';
+  h+='<div class="d-title"><span class="pill">Day '+n+' · '+fmt(n)+' '+wd(n)+'</span><span class="pill" style="background:var(--surface2);color:var(--fg)">第 '+d.w+' 周</span></div>';
+  h+='<h2>'+T.n+'</h2>';
+  if(d.t==='run'){
+    var r=RUN[n],long=((n-1)%7===5);
+    var txt=(n===1)?'已在第一天完成：约 6 分钟，速度 8，感觉很轻松。':'目标 '+(r[0]===r[1]?r[0]:r[0]+'–'+r[1])+' 分钟轻松跑'+(long?'（本周最长的一次）':'')+'，是上限参考，不是必须完成的指标。';
+    h+='<p class="sub">'+txt+'</p>';
+    h+='<div class="seg" aria-label="热身、跑步、放松时间分配"><div class="w" style="flex:5">快走 5′</div><div class="r" style="flex:'+r[1]+'">轻松跑 '+r[1]+'′</div><div class="w" style="flex:5">慢走 5′</div></div>';
+    h+='<div class="field"><span>吃力时的跑走交替：每格 1 分钟</span><div class="blocks">';
+    for(var m=1;m<=r[1];m++){h+='<i class="'+(m%4===0?'g':'')+'"></i>';}
+    h+='</div><p class="sub">橙色跑 3 分钟，灰色走 1 分钟，循环到总时长。</p></div>';
+    h+='<div class="callout">说话测试：整段都能比较自然地说完整句话。只能断断续续蹦几个词，就降速或走一会儿。</div>';
+  }else if(d.t==='rest'){
+    h+='<p class="sub">今天不练力量。轻松走 20–30 分钟，再活动一下肩、髋和脚踝。</p><div class="callout">恢复日让背和手臂在两次力量课之间长回来。昨晚没睡够的话，其他训练日也可以改成这一档。</div>';
+  }else{
+    h+='<p class="sub">先快走 5–8 分钟热身，每个动作 2 组，组间休息 1–2 分钟。第一组用很轻的重量试做。</p>';
+    SESSION[d.t].forEach(function(k){
+      var e=EX[k];
+      h+='<div class="ex-row"><div class="pair">'+fig(e.a)+fig(e.b)+'</div><div><h4>'+e.zh+' <span class="meta">2 组 × '+e.reps+'</span></h4><div class="meta">'+e.tip+'</div><div class="sets">';
+      for(var s=1;s<=2;s++){var id=n+'-'+k+'-'+s;h+='<button data-set="'+id+'" aria-pressed="'+(!!S.sets[id])+'">第 '+s+' 组</button>';}
+      h+='<label>重量 <input type="text" inputmode="decimal" data-kg="'+k+'" id="kg-'+k+'" value="'+esc(S.kg[k]||'')+'" placeholder="kg"></label><a class="more" href="#lib-'+k+'" data-jump="lib-'+k+'">看示范</a></div></div></div>';
+    });
+    h+='<div class="callout">'+(d.w===1?'第 1 周：每组结束时还能再做 3–4 次，先把动作做稳。':d.w===2?'第 2 周：重量不变，次数靠近上限，每组留 2–3 次余力。':'第 3 周：连续两次轻松做满上限次数，再加最小一档重量。')+'</div>';
+  }
+  h+='</div><div>';
+  h+='<div class="field"><span>练后上午的精神状态</span><div class="chips" role="group" aria-label="精神状态 1 到 5">';
+  for(var k=1;k<=5;k++){h+='<button data-energy="'+k+'" aria-pressed="'+(S.energy[n]===k)+'">'+k+'</button>';}
+  h+='</div><p class="sub">1 = 很疲惫，5 = 清醒好学习。连续两天低于 3，下一次训练减半。</p></div>';
+  h+='<div class="field"><span>昨晚睡眠</span><select id="sleep" aria-label="睡眠时长"><option value="">未记录</option>';
+  ['少于 6 小时','6–7 小时','7–8 小时','8 小时以上'].forEach(function(o){h+='<option'+(S.sleep[n]===o?' selected':'')+'>'+o+'</option>';});
+  h+='</select></div>';
+  h+='<div class="field"><span>备注</span><textarea id="note" placeholder="重量、跑步感受、哪里不舒服…">'+esc(S.note[n]||'')+'</textarea></div>';
+  h+='<button class="go'+(S.done[n]?' off':'')+'" data-finish="'+n+'">'+(S.done[n]?'已完成，点击撤销':'完成这一天')+'</button>';
+  h+='</div></section>';
+  return h;
+}
+
+function chart(){
+  var W=360,H=180,L=30,B=26,T=14,R=6,runs=Object.keys(RUN).map(Number);
+  var slot=(W-L-R)/runs.length,bw=slot*0.58;
+  function y(v){return H-B-(H-B-T)*v/30;}
+  var s='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="9 次轻松跑的目标时长">';
+  [0,10,20,30].forEach(function(v){s+='<line class="gl" x1="'+L+'" x2="'+(W-R)+'" y1="'+y(v)+'" y2="'+y(v)+'"/><text x="'+(L-6)+'" y="'+(y(v)+3)+'" text-anchor="end">'+v+'</text>';});
+  runs.forEach(function(n,i){
+    var x=L+slot*i+(slot-bw)/2,r=RUN[n],dn=!!S.done[n];
+    s+='<rect x="'+x+'" y="'+y(r[1])+'" width="'+bw+'" height="'+(y(0)-y(r[1]))+'" rx="3" fill="var(--run)" fill-opacity="'+(dn?1:.25)+'"/>';
+    if(r[0]<r[1]){s+='<rect x="'+x+'" y="'+y(r[0])+'" width="'+bw+'" height="'+(y(0)-y(r[0]))+'" fill="var(--run)" fill-opacity="'+(dn?1:.55)+'"/>';}
+    s+='<text class="v" x="'+(x+bw/2)+'" y="'+(y(r[1])-4)+'" text-anchor="middle">'+r[1]+'</text><text x="'+(x+bw/2)+'" y="'+(H-9)+'" text-anchor="middle">D'+n+'</text>';
+  });
+  s+='</svg>';
+  return '<section class="card chart"><div><div class="eyebrow">跑步耐力</div><h2>三周跑量只往上走一点</h2></div>'+s+'<p class="sub">单位：分钟（不含前后各 5 分钟步行）。深色是时长下限，浅色是上限，完成后整根变实心。先延长时间，这三周不安排冲刺、陡坡和配速测试。</p></section>';
+}
+
+function library(){
+  var h='';
+  Object.keys(EX).forEach(function(k){
+    var e=EX[k];
+    h+='<article class="mv" id="lib-'+k+'"><div class="pair"><figure>'+fig(e.a)+'开始</figure><figure>'+fig(e.b)+'完成</figure></div><h3>'+e.zh+'<small>'+e.en+'</small></h3><ul>'+e.cues.map(function(c){return '<li>'+c+'</li>';}).join('')+'</ul>'+
+      '<div class="links"><a class="p" href="'+e.vid[0]+'" target="_blank" rel="noopener">看教程 · '+e.vid[1]+'</a><a href="https://search.bilibili.com/all?keyword='+encodeURIComponent(e.bl)+'" target="_blank" rel="noopener">B站搜索</a><a href="https://www.youtube.com/results?search_query='+encodeURIComponent(e.yt)+'" target="_blank" rel="noopener">YouTube</a></div></article>';
+  });
+  return h;
+}
+
+function rules(){
+  return '<section class="rules">'+
+   '<div class="rule" style="--c:var(--run)"><h3>说话测试</h3><p>跑步全程能比较自然地说完整句话。跑步机显示 speed 8，先确认单位：km/h 约每公里 7′30″。</p></div>'+
+   '<div class="rule" style="--c:var(--str)"><h3>重量规则</h3><p>第 1 周留 3–4 次余力，第 2 周留 2–3 次，第 3 周连续两次轻松做满再加最小一档。不用追求酸痛。</p></div>'+
+   '<div class="rule" style="--c:var(--rest)"><h3>睡眠优先</h3><p>7 点训练不值得用睡眠来换。前一晚明显缺觉，第二天改成恢复走路。三餐正常吃，保留主食。</p></div></section>';
+}
+
+document.getElementById('app').addEventListener('click',function(ev){
+  var t=ev.target.closest('button,a');if(!t)return;
+  if(t.dataset.day){S.sel=+t.dataset.day;save();render();return;}
+  if(t.dataset.set){S.sets[t.dataset.set]=!S.sets[t.dataset.set];save();render();return;}
+  if(t.dataset.energy){S.energy[S.sel]=(S.energy[S.sel]===+t.dataset.energy)?null:+t.dataset.energy;save();render();return;}
+  if(t.dataset.finish){var n=+t.dataset.finish;S.done[n]=!S.done[n];save();render();return;}
+  if(t.dataset.jump){ev.preventDefault();var el=document.getElementById(t.dataset.jump);if(el)el.scrollIntoView({behavior:'smooth',block:'center'});}
+});
+document.getElementById('app').addEventListener('input',function(ev){
+  var t=ev.target;
+  if(t.id==='note'){S.note[S.sel]=t.value;save();}
+  else if(t.dataset&&t.dataset.kg){S.kg[t.dataset.kg]=t.value;save();}
+});
+document.getElementById('app').addEventListener('change',function(ev){
+  var t=ev.target;
+  if(t.id==='sleep'){S.sleep[S.sel]=t.value;save();}
+  else if(t.id==='startDate'&&t.value){S.start=t.value;S.sel=null;save();render();}
+});
+render();
+})();
+</script>
+</body>
+</html>
